@@ -11,7 +11,7 @@ sudo dnf update -y
 # Install development tools and dependencies
 # Note: Fedora 42 uses dnf5 with "development-tools" group name
 sudo dnf group install -y development-tools
-sudo dnf install -y \
+sudo dnf install -y --skip-unavailable \
     gcc \
     gcc-c++ \
     autoconf \
@@ -31,7 +31,6 @@ sudo dnf install -y \
     unzip \
     python3 \
     python3-pip \
-    python3-venv \
     golang \
     nodejs \
     npm

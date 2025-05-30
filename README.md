@@ -131,8 +131,17 @@ echo "Setting up Fedora 42 DevSecOps workstation..."
 sudo dnf update -y
 
 # Install development tools and dependencies
-sudo dnf groupinstall -y "Development Tools"
-sudo dnf install -y \
+# Note: Fedora 42 uses dnf5 with "development-tools" group name
+sudo dnf group install -y development-tools
+sudo dnf install -y --skip-unavailable \
+    gcc \
+    gcc-c++ \
+    autoconf \
+    automake \
+    libtool \
+    make \
+    patch \
+    pkgconfig \
     git \
     curl \
     wget \
@@ -144,7 +153,6 @@ sudo dnf install -y \
     unzip \
     python3 \
     python3-pip \
-    python3-venv \
     golang \
     nodejs \
     npm
