@@ -1,0 +1,33 @@
+﻿# OpenTofu/Terraform
+*.tfstate
+*.tfstate.*
+*.tfvars.backup
+*.tfplan
+.terraform/
+.terraform.lock.hcl
+*.auto.tfvars
+
+# Terragrunt
+.terragrunt-cache/
+
+# Ansible
+*.retry
+.vault_pass
+ansible.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets and credentials
+secrets/
+*.pem
+*.key
+!*.key.example
