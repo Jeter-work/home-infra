@@ -51,7 +51,7 @@
 
   tasks:
     - name: Display target system information
-      debug:
+      ansible.builtin.debug:
         msg:
           - "Setting up DevSecOps workstation on: {{ ansible_hostname }}"
           - "OS: {{ ansible_distribution }} {{ ansible_distribution_version }}"
@@ -59,54 +59,54 @@
 
     - name: Update all packages
       become: true
-      dnf:
+      ansible.builtin.dnf:
         name: "*"
         state: latest
         update_cache: true
 
     - name: Install development tools group
       become: true
-      dnf:
+      ansible.builtin.dnf:
         name: "@development-tools"
         state: present
 
     - name: Install core development packages
       become: true
-      dnf:
+      ansible.builtin.dnf:
         name: "{{ development_packages }}"
         state: present
 
     - name: Install platform engineering tools
       become: true
-      dnf:
+      ansible.builtin.dnf:
         name: "{{ platform_tools }}"
         state: present
 
 
     - name: Install FluxCD CLI
       become: true
-      shell: |
+      ansible.builtin.shell: |
         curl -s https://fluxcd.io/install.sh | bash
       args:
         creates: /usr/local/bin/flux
 
     - name: Install Trivy security scanner
       become: true
-      dnf:
+      ansible.builtin.dnf:
         name: "https://github.com/aquasecurity/trivy/releases/download/v0.48.3/trivy_0.48.3_Linux-64bit.rpm"
         state: present
         disable_gpg_check: true
 
     - name: Install GitLab Runner
       become: true
-      shell: |
+      ansible.builtin.shell: |
         curl -L "https://packages.gitlab.com/install/repositories/runner/gitlab-runner/script.rpm.sh" | bash
         dnf install -y gitlab-runner
       args:
         creates: /usr/bin/gitlab-runner
 
     - name: Create workspace directories
-      file:
+      ansible.builtin.file:
         path: "{{ item }}"
         state: directory
         mode: '0755'
@@ -118,7 +118,7 @@
         - "{{ ansible_env.HOME }}/.config/ansible"
 
     - name: Create Ansible configuration
-      copy:
+      ansible.builtin.copy:
         content: |
           [defaults]
           host_key_checking = False
@@ -150,7 +150,7 @@
         mode: '0644'
 
     - name: Configure Git (interactive)
-      pause:
+      ansible.builtin.pause:
         prompt: |
           Git configuration needed:
           Please enter your Git username
@@ -158,13 +158,13 @@
       when: ansible_user_id != "root"
 
     - name: Configure Git (interactive) - Email
-      pause:
+      ansible.builtin.pause:
         prompt: "Please enter your Git email"
       register: git_email
       when: ansible_user_id != "root"
 
     - name: Set Git configuration
-      shell: |
+      ansible.builtin.shell: |
         git config --global user.name "{{ git_username.user_input }}"
         git config --global user.email "{{ git_email.user_input }}"
         git config --global init.defaultBranch main
@@ -175,20 +175,20 @@
         - git_email.user_input is defined
 
     - name: Generate SSH key for Git/Ansible operations
-      openssh_keypair:
+      community.crypto.openssh_keypair:
         path: "{{ ansible_env.HOME }}/.ssh/id_ed25519"
         type: ed25519
         comment: "{{ git_email.user_input | default(ansible_user_id) }}@{{ ansible_hostname }}"
       when: ansible_user_id != "root"
 
     - name: Display SSH public key
-      shell: cat "{{ ansible_env.HOME }}/.ssh/id_ed25519.pub"
+      ansible.builtin.shell: cat "{{ ansible_env.HOME }}/.ssh/id_ed25519.pub"
       register: ssh_public_key
       when: ansible_user_id != "root"
 
     - name: Configure firewall for development
       become: true
-      firewalld:
+      ansible.posix.firewalld:
         port: "{{ item }}"
         permanent: true
         state: enabled
@@ -202,7 +202,7 @@
       ignore_errors: true
 
     - name: Display completion summary
-      debug:
+      ansible.builtin.debug:
         msg:
           - "=== DevSecOps Workstation Setup Complete ==="
           - ""
@@ -235,5 +235,5 @@
   handlers:
     - name: reload firewall
       become: true
-      shell: firewall-cmd --reload
+      ansible.builtin.shell: firewall-cmd --reload
 

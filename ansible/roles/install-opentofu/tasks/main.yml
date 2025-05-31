@@ -1,7 +1,7 @@
 ---
 - name: Install OpenTofu
   become: true
-  shell: |
+  ansible.builtin.shell: |
     curl --proto '=https' --tlsv1.2 -fsSL https://get.opentofu.org/install-opentofu.sh -o /tmp/install-opentofu.sh
     chmod +x /tmp/install-opentofu.sh
     /tmp/install-opentofu.sh --install-method rpm
@@ -10,7 +10,7 @@
     creates: /usr/bin/tofu
 
 - name: Check OpenTofu version
-  command: tofu version
+  ansible.builtin.command: tofu version
   register: tofu_version
   changed_when: false
   failed_when: false

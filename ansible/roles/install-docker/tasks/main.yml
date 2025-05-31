@@ -1,43 +1,43 @@
 ---
 - name: Install dnf plugins core for Docker repository
   become: true
-  dnf:
+  ansible.builtin.dnf:
     name: dnf-plugins-core
     state: present
 
 - name: Add Docker repository
   become: true
-  dnf_repository:
+  ansible.builtin.yum_repository:
     name: docker-ce-stable
     description: Docker CE Stable Repository
-    baseurl: https://download.docker.com/linux/fedora/docker-ce.repo
+    baseurl: https://download.docker.com/linux/fedora/$releasever/x86_64/stable
     enabled: true
     gpgcheck: true
     gpgkey: https://download.docker.com/linux/fedora/gpg
 
 - name: Install container tools
   become: true
-  dnf:
+  ansible.builtin.dnf:
     name: "{{ container_tools }}"
     state: present
     update_cache: true
 
 - name: Create docker group
   become: true
-  group:
+  ansible.builtin.group:
     name: docker
     state: present
 
 - name: Add user to docker group
   become: true
-  user:
+  ansible.builtin.user:
     name: "{{ ansible_user }}"
     groups: docker
     append: true
 
 - name: Start and enable Docker service
   become: true
-  systemd:
+  ansible.builtin.systemd:
     name: docker.service
     state: started
     enabled: true
@@ -45,14 +45,14 @@
 
 - name: Start and enable Docker socket
   become: true
-  systemd:
+  ansible.builtin.systemd:
     name: docker.socket
     state: started
     enabled: true
 
 - name: Wait for Docker to be ready
   become: true
-  command: docker version
+  ansible.builtin.command: docker version
   register: docker_version
   retries: 5
   delay: 3
@@ -60,23 +60,23 @@
   changed_when: false
 
 - name: Display Docker version
-  debug:
+  ansible.builtin.debug:
     var: docker_version.stdout_lines
 
 - name: Test Docker with hello-world
   become: true
-  command: docker run --rm hello-world
+  ansible.builtin.command: docker run --rm hello-world
   register: docker_test
   changed_when: false
 
 - name: Display Docker test result
-  debug:
+  ansible.builtin.debug:
     msg: "Docker is working correctly!"
   when: docker_test.rc == 0
 
 - name: Configure SELinux for containers and web services
   become: true
-  seboolean:
+  ansible.posix.seboolean:
     name: "{{ item }}"
     state: true
     persistent: true
