@@ -1,0 +1,111 @@
+---
+# ansible/roles/remove-docker/tasks/main.yml
+
+- name: Stop Docker service
+  become: true
+  systemd:
+    name: docker.service
+    state: stopped
+  failed_when: false
+
+- name: Stop Docker socket
+  become: true
+  systemd:
+    name: docker.socket
+    state: stopped
+  failed_when: false
+
+- name: Disable Docker service
+  become: true
+  systemd:
+    name: docker.service
+    enabled: false
+  failed_when: false
+
+- name: Disable Docker socket
+  become: true
+  systemd:
+    name: docker.socket
+    enabled: false
+  failed_when: false
+
+- name: Reset failed Docker services
+  become: true
+  command: "{{ item }}"
+  loop:
+    - systemctl reset-failed docker.service
+    - systemctl reset-failed docker.socket
+  failed_when: false
+
+- name: Remove all Docker packages
+  become: true
+  dnf:
+    name:
+      # Docker CE packages
+      - docker-ce
+      - docker-ce-cli
+      - docker-ce-rootless-extras
+      - docker-compose-plugin
+      - docker-buildx-plugin
+      # Fedora Docker packages
+      - docker
+      - docker-compose
+      - moby-engine
+      - moby-engine-nano
+      - tini-static
+      # Related packages
+      - containerd.io
+      - runc
+    state: absent
+  failed_when: false
+
+- name: Remove Docker group
+  become: true
+  group:
+    name: docker
+    state: absent
+
+- name: Remove Docker directories
+  become: true
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /var/lib/docker
+    - /var/run/docker
+    - /var/run/docker.sock
+    - /etc/docker
+    - /etc/systemd/system/docker.service.d
+    - /usr/local/lib/systemd/system/docker.service
+    - /lib/systemd/system/docker.service
+    - /etc/systemd/system/multi-user.target.wants/docker.service
+
+- name: Remove Docker repository files
+  become: true
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/yum.repos.d/docker-ce.repo
+    - /etc/pki/rpm-gpg/RPM-GPG-KEY-Docker
+
+- name: Clean DNF cache
+  become: true
+  command: dnf clean all
+  changed_when: false
+
+- name: Reload systemd daemon
+  become: true
+  systemd:
+    daemon_reload: true
+
+- name: Verify Docker removal
+  command: which docker
+  register: docker_check
+  failed_when: false
+  changed_when: false
+
+- name: Display Docker removal status
+  debug:
+    msg: "Docker successfully removed"
+  when: docker_check.rc != 0
