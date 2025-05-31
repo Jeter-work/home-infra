@@ -68,7 +68,6 @@
         "ip6tables": false
       }
     mode: '0644'
-    create: true
 
 # starting Docker service and socket
 - name: Start and enable Docker service
