@@ -4,7 +4,7 @@
   gather_facts: true
   become: false
   vars:
-    # Platform engineering tools focused on infrastructure and CI/CD
+    # dev tools
     development_packages:
       - gcc
       - gcc-c++
@@ -12,7 +12,7 @@
       - autoconf
       - automake
       - libtool
-    
+    # Platform engineering tools focused on infrastructure and CI/CD
     platform_tools:
       - git
       - curl
@@ -33,19 +33,20 @@
       - nc          # netcat
       - tcpdump
       - wireshark-cli
-    
-    container_tools:
-      - podman
-      - podman-compose
-      - buildah
-      - skopeo
-      - docker
-      - docker-compose
-    
+    # monitoring and observability tools
     monitoring_tools:
       - prometheus
       - grafana
       - node_exporter
+
+  roles:
+    # Remove Docker completely first
+    - remove-docker
+    # Install Docker after removal
+    - install-docker    # Install OpenTofu for infrastructure management
+    - install-opentofu
+    # Install Kubernetes tools (kubectl, helm, k3sup)
+    - install-kubernetes
 
   tasks:
     - name: Display target system information
@@ -80,87 +81,6 @@
         name: "{{ platform_tools }}"
         state: present
 
-    - name: Add Docker repository
-      become: true
-      dnf:
-        name: dnf-plugins-core
-        state: present
-
-    # - name: Add Docker CE repository
-    #   become: true
-    #   shell: |
-    #     dnf config-manager --add-repo https://download.docker.com/linux/fedora/docker-ce.repo
-    #   args:
-    #     creates: /etc/yum.repos.d/docker-ce.repo
-
-    - name: Remove Docker CE repository if present
-      become: true
-      file:
-        path: /etc/yum.repos.d/docker-ce.repo
-        state: absent
-
-    - name: Remove Docker CE packages
-      become: true
-      dnf:
-        name:
-          - docker-ce
-          - docker-ce-cli
-          - docker-compose-plugin
-        state: absent
-
-    - name: Install container tools (Fedora packages)
-      become: true
-      dnf:
-        name: "{{ container_tools }}"
-        state: present
-
-    - name: Start and enable Docker service
-      become: true
-      systemd:
-        name: docker
-        state: started
-        enabled: true
-
-    - name: Add user to docker group
-      become: true
-      user:
-        name: "{{ ansible_user_id }}"
-        groups: docker
-        append: true
-
-    - name: Install OpenTofu
-      become: true
-      shell: |
-        curl --proto '=https' --tlsv1.2 -fsSL https://get.opentofu.org/install-opentofu.sh -o /tmp/install-opentofu.sh
-        chmod +x /tmp/install-opentofu.sh
-        /tmp/install-opentofu.sh --install-method rpm
-        rm /tmp/install-opentofu.sh
-      args:
-        creates: /usr/bin/tofu
-
-    - name: Install kubectl
-      become: true
-      shell: |
-        curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-        chmod +x kubectl
-        mv kubectl /usr/local/bin/
-      args:
-        creates: /usr/local/bin/kubectl
-
-    - name: Install Helm
-      become: true
-      shell: |
-        curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
-      args:
-        creates: /usr/local/bin/helm
-
-    - name: Install k3sup for K3s management
-      become: true
-      shell: |
-        curl -sLS https://get.k3sup.dev | sh
-        install k3sup /usr/local/bin/
-      args:
-        creates: /usr/local/bin/k3sup
 
     - name: Install FluxCD CLI
       become: true
@@ -280,17 +200,6 @@
         - "3001/tcp"  # Grafana
       ignore_errors: true
 
-    - name: Set SELinux booleans for containers
-      become: true
-      seboolean:
-        name: "{{ item }}"
-        state: true
-        persistent: true
-      loop:
-        - container_manage_cgroup
-        - httpd_can_network_connect
-      ignore_errors: true
-
     - name: Display completion summary
       debug:
         msg:
@@ -299,7 +208,9 @@
           - "Installed Tools:"
           - "- OpenTofu: {{ ansible_local.tofu.version | default('installed') }}"
           - "- Ansible: {{ ansible_version.full }}"
-          - "- kubectl, helm, k3sup, flux: installed"
+          - "- Kubernetes tools: {{ ansible_local.kubernetes_tools.kubectl | default('kubectl installed') }}"
+          - "- Package managers: {{ ansible_local.kubernetes_tools.helm | default('helm installed') }}, {{ ansible_local.kubernetes_tools.k3sup | default('k3sup installed') }}"
+          - "- GitOps: flux installed"
           - "- Container tools: podman, docker, buildah, skopeo"
           - "- Security tools: trivy"
           - "- CI/CD tools: gitlab-runner"
@@ -318,8 +229,10 @@
           - ""
           - "SSH Public Key (add to GitHub/GitLab):"
           - "{{ ssh_public_key.stdout | default('Run: cat ~/.ssh/id_ed25519.pub') }}"
+  post_tasks:
 
   handlers:
     - name: reload firewall
       become: true
       shell: firewall-cmd --reload
+

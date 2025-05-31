@@ -1,0 +1,4 @@
+---
+# Variables for Kubernetes tools installation
+kubernetes_version: latest  # Can be overridden to install a specific version
+helm_version: latest  # Can be overridden to install a specific version

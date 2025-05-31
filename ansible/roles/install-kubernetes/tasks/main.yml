@@ -1,0 +1,44 @@
+---
+- name: Install k3s (lightweight kubernetes)
+  become: true
+  shell: |
+    curl -sfL https://get.k3s.io | sh -
+  args:
+    creates: /usr/local/bin/k3s
+  register: k3s_install
+
+- name: Enable and start k3s service
+  become: true
+  systemd:
+    name: k3s
+    state: started
+    enabled: true
+  when: k3s_install.changed
+
+- name: Install Helm
+  become: true
+  shell: |
+    curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+  args:
+    creates: /usr/local/bin/helm
+
+- name: Get k3s version
+  command: k3s --version
+  register: k3s_version
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Get Helm version
+  command: helm version --short
+  register: helm_version
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Store versions in ansible facts
+  ansible.builtin.set_fact:
+    ansible_local:
+      kubernetes_tools:
+        k3s: "{{ k3s_version.stdout | default('installed') }}"
+        helm: "{{ helm_version.stdout | default('not installed') }}"

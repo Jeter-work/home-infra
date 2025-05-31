@@ -65,6 +65,21 @@
     name: docker
     state: absent
 
+- name: Remove Docker CE repository if present
+  become: true
+  file:
+    path: /etc/yum.repos.d/docker-ce.repo
+    state: absent
+
+- name: Remove Docker CE packages
+  become: true
+  dnf:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - docker-compose-plugin
+    state: absent
+
 - name: Remove Docker directories
   become: true
   file:

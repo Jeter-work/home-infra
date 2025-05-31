@@ -1,0 +1,12 @@
+---
+galaxy_info:
+  author: Scott Jeter
+  description: Install OpenTofu for infrastructure management
+  license: MIT
+  min_ansible_version: "2.9"
+  platforms:
+    - name: Fedora
+      versions:
+        - all
+
+dependencies: []

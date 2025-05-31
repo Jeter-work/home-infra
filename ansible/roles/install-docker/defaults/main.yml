@@ -1,0 +1,8 @@
+---
+container_tools:
+  - podman
+  - podman-compose
+  - buildah
+  - skopeo
+  - docker
+  - docker-compose

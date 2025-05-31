@@ -1,0 +1,3 @@
+---
+# Installation options
+opentofu_install_method: rpm

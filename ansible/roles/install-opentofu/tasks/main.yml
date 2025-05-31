@@ -1,0 +1,23 @@
+---
+- name: Install OpenTofu
+  become: true
+  shell: |
+    curl --proto '=https' --tlsv1.2 -fsSL https://get.opentofu.org/install-opentofu.sh -o /tmp/install-opentofu.sh
+    chmod +x /tmp/install-opentofu.sh
+    /tmp/install-opentofu.sh --install-method rpm
+    rm /tmp/install-opentofu.sh
+  args:
+    creates: /usr/bin/tofu
+
+- name: Check OpenTofu version
+  command: tofu version
+  register: tofu_version
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Store OpenTofu version in ansible facts
+  ansible.builtin.set_fact:
+    ansible_local:
+      tofu:
+        version: "{{ tofu_version.stdout_lines[0] | regex_replace('^OpenTofu v', '') if tofu_version.rc == 0 else 'not installed' }}"

@@ -1,0 +1,86 @@
+---
+- name: Install dnf plugins core for Docker repository
+  become: true
+  dnf:
+    name: dnf-plugins-core
+    state: present
+
+- name: Add Docker repository
+  become: true
+  dnf_repository:
+    name: docker-ce-stable
+    description: Docker CE Stable Repository
+    baseurl: https://download.docker.com/linux/fedora/docker-ce.repo
+    enabled: true
+    gpgcheck: true
+    gpgkey: https://download.docker.com/linux/fedora/gpg
+
+- name: Install container tools
+  become: true
+  dnf:
+    name: "{{ container_tools }}"
+    state: present
+    update_cache: true
+
+- name: Create docker group
+  become: true
+  group:
+    name: docker
+    state: present
+
+- name: Add user to docker group
+  become: true
+  user:
+    name: "{{ ansible_user }}"
+    groups: docker
+    append: true
+
+- name: Start and enable Docker service
+  become: true
+  systemd:
+    name: docker.service
+    state: started
+    enabled: true
+    daemon_reload: true
+
+- name: Start and enable Docker socket
+  become: true
+  systemd:
+    name: docker.socket
+    state: started
+    enabled: true
+
+- name: Wait for Docker to be ready
+  become: true
+  command: docker version
+  register: docker_version
+  retries: 5
+  delay: 3
+  until: docker_version.rc == 0
+  changed_when: false
+
+- name: Display Docker version
+  debug:
+    var: docker_version.stdout_lines
+
+- name: Test Docker with hello-world
+  become: true
+  command: docker run --rm hello-world
+  register: docker_test
+  changed_when: false
+
+- name: Display Docker test result
+  debug:
+    msg: "Docker is working correctly!"
+  when: docker_test.rc == 0
+
+- name: Configure SELinux for containers and web services
+  become: true
+  seboolean:
+    name: "{{ item }}"
+    state: true
+    persistent: true
+  loop:
+    - container_manage_cgroup
+    - httpd_can_network_connect
+  ignore_errors: true
