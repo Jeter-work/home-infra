@@ -38,16 +38,24 @@
       - prometheus
       - grafana
       - node_exporter
-
   roles:
     # Remove Docker completely first
-    - ../roles/remove-docker
+    - role: ../roles/remove-docker
+      tags: 
+        - never  # Won't run by default
+        - docker-remove  # For explicit removal only
+        - docker-reinstall  # For remove-then-install workflow
     # Install Docker after removal
-    - ../roles/install-docker
+    - role: ../roles/install-docker
+      tags:
+        - docker
+        - docker-reinstall
     # Install OpenTofu for infrastructure management
-    - ../roles/install-opentofu
+    - role: ../roles/install-opentofu
+      tags: opentofu
     # Install Kubernetes tools (kubectl, helm, k3)
-    - ../roles/install-kubernetes
+    - role: ../roles/install-kubernetes
+      tags: kubernetes
 
   tasks:
     - name: Display target system information
