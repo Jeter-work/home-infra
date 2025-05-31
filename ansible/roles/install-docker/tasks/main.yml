@@ -5,15 +5,12 @@
     name: dnf-plugins-core
     state: present
 
-- name: Add Docker repository
+- name: Add Docker CE repository
   become: true
-  ansible.builtin.yum_repository:
-    name: docker-ce-stable
-    description: Docker CE Stable Repository
-    baseurl: https://download.docker.com/linux/fedora/$releasever/x86_64/stable
-    enabled: true
-    gpgcheck: true
-    gpgkey: https://download.docker.com/linux/fedora/gpg
+  ansible.builtin.shell: |
+    dnf config-manager --add-repo https://download.docker.com/linux/fedora/docker-ce.repo
+  args:
+    creates: /etc/yum.repos.d/docker-ce.repo
 
 - name: Install container tools
   become: true
@@ -82,5 +79,8 @@
     persistent: true
   loop:
     - container_manage_cgroup
+    - container_runtime_selinux
+    - container_use_devices
     - httpd_can_network_connect
+    - virt_sandbox_use_all_caps
   ignore_errors: true
