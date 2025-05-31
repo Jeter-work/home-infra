@@ -6,7 +6,6 @@
   vars:
     # Platform engineering tools focused on infrastructure and CI/CD
     development_packages:
-      - development-tools
       - gcc
       - gcc-c++
       - make

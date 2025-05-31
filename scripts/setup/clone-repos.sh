@@ -31,11 +31,6 @@ echo "=== Repository Setup ==="
 cd home-infra
 
 # Set up Ansible requirements
-# echo "Installing Ansible requirements..."
-# if [ ! -d "ansible" ]; then
-#     mkdir ansible
-# fi
-
 cd ansible
 ansible-galaxy install -r requirements.yml || echo "No requirements.yml found, skipping..."
 cd ..
