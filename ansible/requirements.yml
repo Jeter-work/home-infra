@@ -1,0 +1,4 @@
+---
+collections:
+  - name: ansible.posix      # For firewalld and seboolean modules
+  - name: community.crypto   # For openssh_keypair module
