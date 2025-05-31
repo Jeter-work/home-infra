@@ -6,3 +6,5 @@ container_tools:
   - skopeo
   - docker
   - docker-compose
+
+ansible_user: "devops"
