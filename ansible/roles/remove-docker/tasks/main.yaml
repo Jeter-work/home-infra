@@ -45,6 +45,8 @@
       - docker-ce
       - docker-ce-cli
       - docker-ce-rootless-extras
+      - docker-ce-selinux
+      - docker-compose-switch
       - docker-compose-plugin
       - docker-buildx-plugin
       # Fedora Docker packages
@@ -69,15 +71,6 @@
   become: true
   ansible.builtin.file:
     path: /etc/yum.repos.d/docker-ce.repo
-    state: absent
-
-- name: Remove Docker CE packages
-  become: true
-  ansible.builtin.dnf:
-    name:
-      - docker-ce
-      - docker-ce-cli
-      - docker-compose-plugin
     state: absent
 
 - name: Remove Docker directories

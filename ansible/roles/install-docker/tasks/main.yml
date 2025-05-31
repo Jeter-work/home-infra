@@ -36,6 +36,41 @@
     groups: docker
     append: true
 
+# nftables is required for Docker networking on Fedora 37 and later
+- name: Install nftables for Docker networking
+  become: true
+  ansible.builtin.dnf:
+    name:
+      - nftables
+    state: present
+
+- name: Start and enable nftables service
+  become: true
+  ansible.builtin.systemd:
+    name: nftables
+    state: started
+    enabled: true
+
+- name: Create Docker config directory
+  become: true
+  ansible.builtin.file:
+    path: /etc/docker
+    state: directory
+    mode: '0755'
+
+- name: Configure Docker to use nftables
+  become: true
+  ansible.builtin.copy:
+    dest: /etc/docker/daemon.json
+    content: |
+      {
+        "iptables": false,
+        "ip6tables": false
+      }
+    mode: '0644'
+    create: true
+
+# starting Docker service and socket
 - name: Start and enable Docker service
   become: true
   ansible.builtin.systemd:
@@ -51,6 +86,7 @@
     state: started
     enabled: true
 
+# Wait for Docker to be ready
 - name: Wait for Docker to be ready
   become: true
   ansible.builtin.command: docker version
