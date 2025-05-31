@@ -118,7 +118,7 @@
     persistent: true
   loop:
     - container_manage_cgroup
-    - container_runtime_selinux
+    - container_use_cephfs
     - container_use_devices
     - httpd_can_network_connect
     - virt_sandbox_use_all_caps
