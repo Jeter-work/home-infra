@@ -41,12 +41,13 @@
 
   roles:
     # Remove Docker completely first
-    - remove-docker
+    - ../roles/remove-docker
     # Install Docker after removal
-    - install-docker    # Install OpenTofu for infrastructure management
-    - install-opentofu
-    # Install Kubernetes tools (kubectl, helm, k3sup)
-    - install-kubernetes
+    - ../roles/install-docker
+    # Install OpenTofu for infrastructure management
+    - ../roles/install-opentofu
+    # Install Kubernetes tools (kubectl, helm, k3)
+    - ../roles/install-kubernetes
 
   tasks:
     - name: Display target system information
