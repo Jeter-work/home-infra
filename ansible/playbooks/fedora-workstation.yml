@@ -1,0 +1,311 @@
+---
+- name: Setup Fedora DevSecOps Platform Engineering Workstation
+  hosts: localhost
+  gather_facts: true
+  become: false
+  vars:
+    # Platform engineering tools focused on infrastructure and CI/CD
+    development_packages:
+      - development-tools
+      - gcc
+      - gcc-c++
+      - make
+      - autoconf
+      - automake
+      - libtool
+    
+    platform_tools:
+      - git
+      - curl
+      - wget
+      - vim
+      - tmux
+      - tree
+      - jq
+      - yq
+      - unzip
+      - bash-completion
+      - rsync
+      - htop
+      - ncdu
+      - bind-utils  # dig, nslookup
+      - net-tools   # netstat, ifconfig
+      - telnet
+      - nc          # netcat
+      - tcpdump
+      - wireshark-cli
+    
+    container_tools:
+      - podman
+      - podman-compose
+      - buildah
+      - skopeo
+      - docker
+      - docker-compose
+    
+    monitoring_tools:
+      - prometheus
+      - grafana
+      - node_exporter
+
+  tasks:
+    - name: Display target system information
+      debug:
+        msg:
+          - "Setting up DevSecOps workstation on: {{ ansible_hostname }}"
+          - "OS: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+          - "Architecture: {{ ansible_architecture }}"
+
+    - name: Update all packages
+      become: true
+      dnf:
+        name: "*"
+        state: latest
+        update_cache: true
+
+    - name: Install development tools group
+      become: true
+      dnf:
+        name: "@development-tools"
+        state: present
+
+    - name: Install core development packages
+      become: true
+      dnf:
+        name: "{{ development_packages }}"
+        state: present
+
+    - name: Install platform engineering tools
+      become: true
+      dnf:
+        name: "{{ platform_tools }}"
+        state: present
+
+    - name: Add Docker repository
+      become: true
+      dnf:
+        name: dnf-plugins-core
+        state: present
+
+    - name: Add Docker CE repository
+      become: true
+      shell: |
+        dnf config-manager --add-repo https://download.docker.com/linux/fedora/docker-ce.repo
+      args:
+        creates: /etc/yum.repos.d/docker-ce.repo
+
+    - name: Install container tools
+      become: true
+      dnf:
+        name: "{{ container_tools }}"
+        state: present
+
+    - name: Start and enable Docker service
+      become: true
+      systemd:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Add user to docker group
+      become: true
+      user:
+        name: "{{ ansible_user_id }}"
+        groups: docker
+        append: true
+
+    - name: Install OpenTofu
+      become: true
+      shell: |
+        curl --proto '=https' --tlsv1.2 -fsSL https://get.opentofu.org/install-opentofu.sh -o /tmp/install-opentofu.sh
+        chmod +x /tmp/install-opentofu.sh
+        /tmp/install-opentofu.sh --install-method rpm
+        rm /tmp/install-opentofu.sh
+      args:
+        creates: /usr/bin/tofu
+
+    - name: Install kubectl
+      become: true
+      shell: |
+        curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+        chmod +x kubectl
+        mv kubectl /usr/local/bin/
+      args:
+        creates: /usr/local/bin/kubectl
+
+    - name: Install Helm
+      become: true
+      shell: |
+        curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+      args:
+        creates: /usr/local/bin/helm
+
+    - name: Install k3sup for K3s management
+      become: true
+      shell: |
+        curl -sLS https://get.k3sup.dev | sh
+        install k3sup /usr/local/bin/
+      args:
+        creates: /usr/local/bin/k3sup
+
+    - name: Install FluxCD CLI
+      become: true
+      shell: |
+        curl -s https://fluxcd.io/install.sh | bash
+      args:
+        creates: /usr/local/bin/flux
+
+    - name: Install Trivy security scanner
+      become: true
+      dnf:
+        name: "https://github.com/aquasecurity/trivy/releases/download/v0.48.3/trivy_0.48.3_Linux-64bit.rpm"
+        state: present
+        disable_gpg_check: true
+
+    - name: Install GitLab Runner
+      become: true
+      shell: |
+        curl -L "https://packages.gitlab.com/install/repositories/runner/gitlab-runner/script.rpm.sh" | bash
+        dnf install -y gitlab-runner
+      args:
+        creates: /usr/bin/gitlab-runner
+
+    - name: Create workspace directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - "{{ ansible_env.HOME }}/workspace"
+        - "{{ ansible_env.HOME }}/workspace/homelab"
+        - "{{ ansible_env.HOME }}/workspace/projects"
+        - "{{ ansible_env.HOME }}/workspace/tools"
+        - "{{ ansible_env.HOME }}/.config/ansible"
+
+    - name: Create Ansible configuration
+      copy:
+        content: |
+          [defaults]
+          host_key_checking = False
+          inventory = ./inventory
+          roles_path = ./roles
+          collections_paths = ~/.ansible/collections
+          timeout = 30
+          gathering = smart
+          fact_caching = memory
+          stdout_callback = yaml
+          callbacks_enabled = profile_tasks
+          remote_user = devops
+          private_key_file = ~/.ssh/id_ed25519
+
+          [inventory]
+          enable_plugins = host_list, script, auto, yaml, ini, toml
+
+          [ssh_connection]
+          ssh_args = -o ControlMaster=auto -o ControlPersist=60s -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes
+          pipelining = True
+          control_path = /tmp/ansible-%%h-%%p-%%r
+
+          [privilege_escalation]
+          become = True
+          become_method = sudo
+          become_user = root
+          become_ask_pass = False
+        dest: "{{ ansible_env.HOME }}/.config/ansible/ansible.cfg"
+        mode: '0644'
+
+    - name: Configure Git (interactive)
+      pause:
+        prompt: |
+          Git configuration needed:
+          Please enter your Git username
+      register: git_username
+      when: ansible_user_id != "root"
+
+    - name: Configure Git (interactive) - Email
+      pause:
+        prompt: "Please enter your Git email"
+      register: git_email
+      when: ansible_user_id != "root"
+
+    - name: Set Git configuration
+      shell: |
+        git config --global user.name "{{ git_username.user_input }}"
+        git config --global user.email "{{ git_email.user_input }}"
+        git config --global init.defaultBranch main
+        git config --global pull.rebase false
+      when: 
+        - ansible_user_id != "root"
+        - git_username.user_input is defined
+        - git_email.user_input is defined
+
+    - name: Generate SSH key for Git/Ansible operations
+      openssh_keypair:
+        path: "{{ ansible_env.HOME }}/.ssh/id_ed25519"
+        type: ed25519
+        comment: "{{ git_email.user_input | default(ansible_user_id) }}@{{ ansible_hostname }}"
+      when: ansible_user_id != "root"
+
+    - name: Display SSH public key
+      shell: cat "{{ ansible_env.HOME }}/.ssh/id_ed25519.pub"
+      register: ssh_public_key
+      when: ansible_user_id != "root"
+
+    - name: Configure firewall for development
+      become: true
+      firewalld:
+        port: "{{ item }}"
+        permanent: true
+        state: enabled
+        immediate: true
+      loop:
+        - "8080/tcp"  # Common dev port
+        - "3000/tcp"  # Node.js dev
+        - "8000/tcp"  # Python dev
+        - "9090/tcp"  # Prometheus
+        - "3001/tcp"  # Grafana
+      ignore_errors: true
+
+    - name: Set SELinux booleans for containers
+      become: true
+      seboolean:
+        name: "{{ item }}"
+        state: true
+        persistent: true
+      loop:
+        - container_manage_cgroup
+        - httpd_can_network_connect
+      ignore_errors: true
+
+    - name: Display completion summary
+      debug:
+        msg:
+          - "=== DevSecOps Workstation Setup Complete ==="
+          - ""
+          - "Installed Tools:"
+          - "- OpenTofu: {{ ansible_local.tofu.version | default('installed') }}"
+          - "- Ansible: {{ ansible_version.full }}"
+          - "- kubectl, helm, k3sup, flux: installed"
+          - "- Container tools: podman, docker, buildah, skopeo"
+          - "- Security tools: trivy"
+          - "- CI/CD tools: gitlab-runner"
+          - ""
+          - "Configuration:"
+          - "- Workspace: {{ ansible_env.HOME }}/workspace/"
+          - "- Ansible config: {{ ansible_env.HOME }}/.config/ansible/ansible.cfg"
+          - "- Git configured for: {{ git_username.user_input | default('not configured') }}"
+          - ""
+          - "Next Steps:"
+          - "1. Log out and back in to apply group changes"
+          - "2. Add SSH key to GitHub/GitLab:"
+          - "   cat ~/.ssh/id_ed25519.pub"
+          - "3. Configure environment variables in your projects"
+          - "4. Test: tofu version && ansible --version && kubectl version --client"
+          - ""
+          - "SSH Public Key (add to GitHub/GitLab):"
+          - "{{ ssh_public_key.stdout | default('Run: cat ~/.ssh/id_ed25519.pub') }}"
+
+  handlers:
+    - name: reload firewall
+      become: true
+      shell: firewall-cmd --reload
